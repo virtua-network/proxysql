@@ -450,7 +450,7 @@ void MySQL_Session::writeout() {
 	if (client_myds) client_myds->array2buffer_full();
 	if (mybe && mybe->server_myds && mybe->server_myds->myds_type==MYDS_BACKEND) {
 		if (session_type==PROXYSQL_SESSION_MYSQL) {
-			if (mybe->server_myds->net_failure==false) { 
+			if (mybe->server_myds->net_failure==false) {
 				if (mybe->server_myds->poll_fds_idx>-1) { // NOTE: attempt to force writes
 					mybe->server_myds->array2buffer_full();
 				}
@@ -750,13 +750,33 @@ bool MySQL_Session::handler_special_queries(PtrSize_t *pkt) {
 		}
 	}
 	if ( (pkt->size < 100) && (pkt->size > 15) && (strncasecmp((char *)"SET NAMES ",(char *)pkt->ptr+5,10)==0) ) {
-		char *unstripped=strndup((char *)pkt->ptr+15,pkt->size-15);
-		char *csname=trim_spaces_and_quotes_in_place(unstripped);
+		char * unstripped NULL;
+		char * csname = NULL;
 		bool collation_specified = false;
 		//unsigned int charsetnr = 0;
 		const CHARSET_INFO * c;
 		char * collation_name_unstripped = NULL;
 		char * collation_name = NULL;
+
+		// strndup() implementation
+		// should not be necessary after SmartOS 20190117T003715Z
+		char *s1=(char *)pkt->ptr+15;
+		size_t n=pkt->size-15;
+
+		n = strnlen(s1, n);
+		if ((unstripped = (char *)malloc(n + 1)) != NULL) {
+			bcopy(s1, unstripped, n);
+			unstripped[n] = '\0';
+		}
+
+		// check if strndup has failed
+		if (unstripped) {
+			csname = trim_spaces_and_quotes_in_place(unstripped);
+		} else {
+			fprintf(stderr, "strndup() failed");
+			return false;
+		}
+
 		if (strcasestr(csname," COLLATE ")) {
 			collation_specified = true;
 			collation_name_unstripped = strcasestr(csname," COLLATE ") + strlen(" COLLATE ");
@@ -1642,7 +1662,7 @@ bool MySQL_Session::handler_again___status_CHANGING_SCHEMA(int *_rc) {
 }
 
 
-bool MySQL_Session::handler_again___status_CONNECTING_SERVER(int *_rc) { 
+bool MySQL_Session::handler_again___status_CONNECTING_SERVER(int *_rc) {
 	//fprintf(stderr,"CONNECTING_SERVER\n");
 	if (mirror) {
 		mybe->server_myds->connect_retries_on_failure=0; // no try for mirror
@@ -1681,7 +1701,7 @@ bool MySQL_Session::handler_again___status_CONNECTING_SERVER(int *_rc) {
 		if (mirror) {
 			PROXY_TRACE();
 			NEXT_IMMEDIATE_NEW(WAITING_CLIENT_DATA);
-		}		
+		}
 	}
 	if (mybe->server_myds->myconn==NULL) {
 		pause_until=thread->curtime+mysql_thread___connect_retries_delay*1000;
@@ -1748,7 +1768,7 @@ bool MySQL_Session::handler_again___status_CONNECTING_SERVER(int *_rc) {
 					}
 					if (mirror) {
 						PROXY_TRACE();
-					}			
+					}
 					myds->destroy_MySQL_Connection_From_Pool(false);
 					NEXT_IMMEDIATE_NEW(CONNECTING_SERVER);
 				} else {
@@ -2484,7 +2504,7 @@ __get_pkts_from_client:
 						return handler_ret;
 						break;
 			}
-				
+
 				break;
 			case FAST_FORWARD:
 				mybe->server_myds->PSarrayOUT->add(pkt.ptr, pkt.size);
@@ -3192,7 +3212,7 @@ handler_again:
 
 
 __exit_DSS__STATE_NOT_INITIALIZED:
-		
+
 
 	if (mybe && mybe->server_myds) {
 	if (mybe->server_myds->DSS > STATE_MARIADB_BEGIN && mybe->server_myds->DSS < STATE_MARIADB_END) {
@@ -3251,7 +3271,7 @@ void MySQL_Session::handler___status_CHANGING_USER_CLIENT___STATE_CLIENT_HANDSHA
 		client_myds->myprot.process_pkt_auth_swich_response((unsigned char *)pkt->ptr,pkt->size)==true
 	) {
 		l_free(pkt->size,pkt->ptr);
-		client_myds->myprot.generate_pkt_OK(true,NULL,NULL,2,0,0,0,0,NULL);	
+		client_myds->myprot.generate_pkt_OK(true,NULL,NULL,2,0,0,0,0,NULL);
 		status=WAITING_CLIENT_DATA;
 		client_myds->DSS=STATE_SLEEP;
 	} else {
@@ -3295,8 +3315,8 @@ void MySQL_Session::handler___status_CHANGING_USER_CLIENT___STATE_CLIENT_HANDSHA
 }
 
 void MySQL_Session::handler___status_CONNECTING_CLIENT___STATE_SERVER_HANDSHAKE(PtrSize_t *pkt, bool *wrong_pass) {
-	if ( 
-		(client_myds->myprot.process_pkt_handshake_response((unsigned char *)pkt->ptr,pkt->size)==true) 
+	if (
+		(client_myds->myprot.process_pkt_handshake_response((unsigned char *)pkt->ptr,pkt->size)==true)
 		&&
 		(
 			//(default_hostgroup<0 && ( session_type == PROXYSQL_SESSION_ADMIN || session_type == PROXYSQL_SESSION_STATS || session_type == PROXYSQL_SESSION_SQLITE) )
@@ -3307,7 +3327,7 @@ void MySQL_Session::handler___status_CONNECTING_CLIENT___STATE_SERVER_HANDSHAKE(
 			//(default_hostgroup>=0 && session_type == PROXYSQL_SESSION_MYSQL)
 			(default_hostgroup>=0 && ( session_type == PROXYSQL_SESSION_MYSQL || session_type == PROXYSQL_SESSION_SQLITE ) )
 			||
-			strncmp(client_myds->myconn->userinfo->username,mysql_thread___monitor_username,strlen(mysql_thread___monitor_username))==0 
+			strncmp(client_myds->myconn->userinfo->username,mysql_thread___monitor_username,strlen(mysql_thread___monitor_username))==0
 		) // Do not delete this line. See bug #492
 	)	{
 		if (session_type == PROXYSQL_SESSION_ADMIN) {
@@ -3503,7 +3523,7 @@ void MySQL_Session::handler___status_CONNECTING_CLIENT___STATE_SSL_INIT(PtrSize_
 		// FIXME: this should become close connection
 		perror("Hitting a not implemented feature: https://github.com/sysown/proxysql-0.2/issues/124");
 		assert(0);
-	}	
+	}
 }
 
 
@@ -3619,30 +3639,40 @@ void MySQL_Session::handler___status_WAITING_CLIENT_DATA___STATE_SLEEP___MYSQL_C
 	proxy_debug(PROXY_DEBUG_MYSQL_COM, 5, "Got COM_QUERY with USE dbname\n");
 	if (session_type == PROXYSQL_SESSION_MYSQL) {
 		__sync_fetch_and_add(&MyHGM->status.frontend_use_db, 1);
-		char *schemaname=strndup((char *)pkt->ptr+sizeof(mysql_hdr)+5,pkt->size-sizeof(mysql_hdr)-5);
-		char *schemanameptr=trim_spaces_and_quotes_in_place(schemaname);
-/*
-		//remove leading spaces
-		while(isspace((unsigned char)*schemanameptr)) schemanameptr++;
-		// remove trailing semicolon , issue #915
-		if (schemanameptr[strlen(schemanameptr)-1]==';') {
-			schemanameptr[strlen(schemanameptr)-1]='\0';
+		char * schemaname = NULL;
+		char * schemanameptr = NULL;
+
+		// strndup() implementation
+		// should not be necessary after SmartOS 20190117T003715Z
+		char *s1=(char *)pkt->ptr+sizeof(mysql_hdr)+5;
+		size_t n=pkt->size-sizeof(mysql_hdr)-5;
+
+		n = strnlen(s1, n);
+		if ((schemaname = (char *)malloc(n + 1)) != NULL) {
+			bcopy(s1, schemaname, n);
+			schemaname[n] = '\0';
 		}
-*/
-		// handle cases like "USE `schemaname`
-		if(schemanameptr[0]=='`' && schemanameptr[strlen(schemanameptr)-1]=='`') {
-			schemanameptr[strlen(schemanameptr)-1]='\0';
-			schemanameptr++;
+
+		// check if strndup has failed
+		if (schemaname) {
+			schemanameptr = trim_spaces_and_quotes_in_place(schemaname)
+			// handle cases like "USE `schemaname`
+			if(schemanameptr[0]=='`' && schemanameptr[strlen(schemanameptr)-1]=='`') {
+				schemanameptr[strlen(schemanameptr)-1]='\0';
+				schemanameptr++;
+			}
+			client_myds->myconn->userinfo->set_schemaname(schemanameptr,strlen(schemanameptr));
+			free(schemaname);
+			l_free(pkt->size,pkt->ptr);
+			client_myds->setDSS_STATE_QUERY_SENT_NET();
+			unsigned int nTrx=NumActiveTransactions();
+			uint16_t setStatus = (nTrx ? SERVER_STATUS_IN_TRANS : 0 );
+			if (autocommit) setStatus += SERVER_STATUS_AUTOCOMMIT;
+			client_myds->myprot.generate_pkt_OK(true,NULL,NULL,1,0,0,setStatus,0,NULL);
+			client_myds->DSS=STATE_SLEEP;
+		} else {
+			fprintf(stderr, "strndup() failed");
 		}
-		client_myds->myconn->userinfo->set_schemaname(schemanameptr,strlen(schemanameptr));
-		free(schemaname);
-		l_free(pkt->size,pkt->ptr);
-		client_myds->setDSS_STATE_QUERY_SENT_NET();
-		unsigned int nTrx=NumActiveTransactions();
-		uint16_t setStatus = (nTrx ? SERVER_STATUS_IN_TRANS : 0 );
-		if (autocommit) setStatus += SERVER_STATUS_AUTOCOMMIT;
-		client_myds->myprot.generate_pkt_OK(true,NULL,NULL,1,0,0,setStatus,0,NULL);
-		client_myds->DSS=STATE_SLEEP;
 	} else {
 		l_free(pkt->size,pkt->ptr);
 		client_myds->setDSS_STATE_QUERY_SENT_NET();
@@ -4122,7 +4152,7 @@ void MySQL_Session::handler___status_WAITING_CLIENT_DATA___STATE_SLEEP___MYSQL_C
 	l_free(pkt->size,pkt->ptr);
 	client_myds->setDSS_STATE_QUERY_SENT_NET();
 	client_myds->myprot.generate_statistics_response(true,NULL,NULL);
-	client_myds->DSS=STATE_SLEEP;	
+	client_myds->DSS=STATE_SLEEP;
 }
 
 void MySQL_Session::handler___status_WAITING_CLIENT_DATA___STATE_SLEEP___MYSQL_COM_CHANGE_USER(PtrSize_t *pkt, bool *wrong_pass) {
@@ -4188,7 +4218,7 @@ void MySQL_Session::handler___status_WAITING_CLIENT_DATA___STATE_SLEEP___MYSQL_C
 
 void MySQL_Session::handler___client_DSS_QUERY_SENT___server_DSS_NOT_INITIALIZED__get_connection() {
 			// Get a MySQL Connection
-	
+
 		MySQL_Connection *mc=NULL;
 #ifdef STRESSTEST_POOL
 		int i=100;
@@ -4380,7 +4410,7 @@ void MySQL_Session::SQLite3_to_MySQL(SQLite3_result *result, char *error, int af
 		myds->DSS=STATE_SLEEP;
 		free(l);
 		free(p);
-	
+
 	} else { // no result set
 		if (error) {
 			// there was an error
