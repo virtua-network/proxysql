@@ -750,7 +750,7 @@ bool MySQL_Session::handler_special_queries(PtrSize_t *pkt) {
 		}
 	}
 	if ( (pkt->size < 100) && (pkt->size > 15) && (strncasecmp((char *)"SET NAMES ",(char *)pkt->ptr+5,10)==0) ) {
-		char * unstripped NULL;
+		char * unstripped = NULL;
 		char * csname = NULL;
 		bool collation_specified = false;
 		//unsigned int charsetnr = 0;
@@ -3655,7 +3655,7 @@ void MySQL_Session::handler___status_WAITING_CLIENT_DATA___STATE_SLEEP___MYSQL_C
 
 		// check if strndup has failed
 		if (schemaname) {
-			schemanameptr = trim_spaces_and_quotes_in_place(schemaname)
+			schemanameptr = trim_spaces_and_quotes_in_place(schemaname);
 			// handle cases like "USE `schemaname`
 			if(schemanameptr[0]=='`' && schemanameptr[strlen(schemanameptr)-1]=='`') {
 				schemanameptr[strlen(schemanameptr)-1]='\0';
